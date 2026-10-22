@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: safewatch
+      POSTGRES_PASSWORD: safewatch_local
+      POSTGRES_DB: safewatch
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U safewatch"]
+      interval: 5s
+      retries: 15
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://safewatch:safewatch_local@db:5432/safewatch
+      APP_API_KEY: ${APP_API_KEY:-change-me-before-deploying}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-change-me-before-deploying}
+      UPLOAD_DIR: /data/uploads
+      ASR_MODEL: ${ASR_MODEL:-tiny}
+      ENABLE_ASR: ${ENABLE_ASR:-false}
+    volumes: [uploads:/data/uploads]
+    ports: ["8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+  web:
+    build: ./frontend
+    environment:
+      API_BASE_URL: http://api:8000
+      APP_API_KEY: ${APP_API_KEY:-change-me-before-deploying}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-change-me-before-deploying}
+    ports: ["3000:3000"]
+    depends_on: [api]
+volumes:
+  pgdata:
+  uploads:
